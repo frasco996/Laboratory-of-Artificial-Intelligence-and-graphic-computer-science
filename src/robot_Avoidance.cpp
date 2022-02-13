@@ -1,5 +1,6 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+#include "geometry_spec.h"
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Vector3.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -34,6 +35,7 @@ int main(int argc, char **argv){
   ros::NodeHandle p;
   ros::Subscriber vel_cmd_sub = p.subscribe("vel_cmd", 5, vel_cmd_sub_callback);
   ros::Subscriber laser_scan_sub = p.subscribe("laser_scan", 500, laser_scan_sub_callback); 
+  v = p.advertise<geometry_msgs::Twist>("vel",1000); 
   ros::spin();
   return 0;
 
