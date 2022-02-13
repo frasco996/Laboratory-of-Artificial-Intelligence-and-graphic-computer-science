@@ -104,7 +104,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
   LIBRARIES Obstacle_avoidance
   CATKIN_DEPENDS roscpp std_msgs
   DEPENDS system_lib
@@ -206,6 +206,6 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(avoider src/avoider.cpp)
-target_link_libraries(avoider ${catkin_LIBRARIES})
-add_dependencies(avoider collision_avoidance_generate_messages_cpp)
+add_executable(robot_Avoidance src/robot_Avoidance.cpp)
+target_link_libraries(robot_Avoidance ${catkin_LIBRARIES})
+add_dependencies(robot_Avoidance Obstacle_avoidance_generate_messages_cpp)

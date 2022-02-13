@@ -13,6 +13,12 @@
 ros::Publisher v;
 bool res = false;
 geometry_msgs::Twist receivedV;
+const int N=200;
+
+void vel_cmd_sub_callback(const geometry_msgs::Twist::ConstPtr& msg){ 
+	res = true;
+	receivedV = *msg;
+}
 
 void laser_scan_sub_callback(const sensor_msgs::LaserScan::ConstPtr& msg){
 
@@ -27,8 +33,8 @@ void laser_scan_sub_callback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	tf::StampedTransform ob;
 
 	try{
-		listener.waitForTransform("pos_base", "Projector_laser", ros::Time(0), ros::Duration(1.0));
-		listener.lookupTransform("pos_base", "Projector_laser", ros::Time(0), ob); 
+		list.waitForTransform("pos_base", "Projector_laser", ros::Time(0), ros::Duration(1.0));
+		list.lookupTransform("pos_base", "Projector_laser", ros::Time(0), ob); 
 
 	}
 	catch(tf::TransformException &ex){
@@ -39,10 +45,10 @@ void laser_scan_sub_callback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	Eigen::Isometry2f laserTrans = convertPose2D(ob);
 	Eigen::Vector2f p_min; 
 
-	p_min(0) = cloud.points[700].x; 
-	p_min(1) = cloud.points[700].y;
+	p_min(0) = cloud.points[540].x; 
+	p_min(1) = cloud.points[540].y;
 	auto ob_pos = laserTrans * p_min;
-	float ob_dist = sqrt(std::pow(ob_pos(0),2)+std::pow(ob_pos(1),2));
+	float ob_dist = sqrt(ob_pos(0)*ob_pos(0)+ob_pos(1)*ob_pos(1));
 
 	const float min = cloud.points.size()/2-200;
 	const float max = cloud.points.size()/2+200;
@@ -54,27 +60,43 @@ void laser_scan_sub_callback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	  v(1) = cloud.points[i].y;  
 
 	  auto ob_posA = laserTrans * v;
-	  float ob_distA = sqrt(std::pow(ob_posA(0),2)+std::pow(ob_posA(1),2));
+	  float ob_distA = sqrt(ob_posA(0)*ob_posA(0)+ob_posA(1)*ob_posA(1));
 
 	  if(ob_distA < ob_dist){
 	    ob_dist = ob_distA;
 	    ob_pos = ob_posA;
 	  }
 	}
+	if(ob_dist < 1.5 && receivedV.linear.x > 0 ){
+	  float force_int = (1.0 / ob_dist) * 0.3 ;
+	  float forceX = -(ob_pos(0) / ob_dist) * force_int;
+	  float forceY = -(ob_pos(1) / ob_dist) * force_int;
 
-}
+	  geometry_msgs::Twist msg_send;
 
-void vel_cmd_sub_callback(const geometry_msgs::Twist::ConstPtr& msg){ 
-	res = true;
-	receivedV = *msg;
+	  msg_send.linear.x = receivedV.linear.x + forceX;
+	  msg_send.linear.y = receivedV.linear.y + forceY;
+	  msg_send.linear.z = receivedV.linear.z;
+
+	  if(ob_pos(1) > 0)
+	    msg_send.angular.z = - force_int; 
+	  else if (ob_pos(1) < 0)
+	    msg_send.angular.z = force_int; 
+	  ROS_INFO("msg_send.linear.x %f",msg_send.linear.x);
+
+	  v.publish(msg_send);
+	}
+	else{
+  		v.publish(receivedV);
+	}
 }
 
 int main(int argc, char **argv){
 
 	ros::init(argc, argv, "robot_avoidance");
 	ros::NodeHandle p;
-	ros::Subscriber vel_cmd_sub = p.subscribe("vel_cmd", 5, vel_cmd_sub_callback);
-	ros::Subscriber laser_scan_sub = p.subscribe("laser_scan", 500, laser_scan_sub_callback); 
+	ros::Subscriber vel_cmd_sub = p.subscribe("cmd_vel", 1, vel_cmd_sub_callback);
+	ros::Subscriber laser_scan_sub = p.subscribe("laser_scan", 1000, laser_scan_sub_callback); 
 	v = p.advertise<geometry_msgs::Twist>("vel",1000); 
 	ros::spin();
 	return 0;
